@@ -15,6 +15,7 @@
 #include <dm.h>
 #include <env.h>
 #include <hang.h>
+#include <i2c.h>
 #include <image.h>
 #include <init.h>
 #include <log.h>
@@ -920,6 +921,27 @@ static void bluetooth_dt_fixup(void *blob)
 			   "local-bd-address", bdaddr, ETH_ALEN, 1);
 }
 
+#ifdef CONFIG_PINEPHONE_DT_SELECTION
+
+#define PINEPHONE_LIS3MDL_I2C_ADDR	0x1E
+#define PINEPHONE_LIS3MDL_I2C_BUS	1 /* I2C1 */
+
+static	void board_dt_fixup(void *blob)
+{
+	struct udevice *bus, *dev;
+
+	if (!uclass_get_device_by_seq(UCLASS_I2C, PINEPHONE_LIS3MDL_I2C_BUS, &bus)) {
+		dm_i2c_probe(bus, PINEPHONE_LIS3MDL_I2C_ADDR, 0, &dev);
+		fdt_set_status_by_compatible(
+			blob, "st,lis3mdl-magn",
+			dev ? FDT_STATUS_OKAY  : FDT_STATUS_DISABLED);
+		fdt_set_status_by_compatible(
+			blob, "voltafield,af8133j",
+			dev ? FDT_STATUS_DISABLED : FDT_STATUS_OKAY);
+	}
+}
+#endif
+
 int ft_board_setup(void *blob, struct bd_info *bd)
 {
 	int __maybe_unused r;
@@ -934,6 +956,9 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 
 	bluetooth_dt_fixup(blob);
 
+#ifdef CONFIG_PINEPHONE_DT_SELECTION
+	board_dt_fixup(blob);
+#endif
 #ifdef CONFIG_VIDEO_DT_SIMPLEFB
 	r = sunxi_simplefb_setup(blob);
 	if (r)
